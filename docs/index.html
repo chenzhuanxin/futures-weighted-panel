@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>加权（仓权）合约监控面板 · 曲合 / 天勤 双数据源</title>
+<meta name="description" content="用加权（持仓量加权）合约监控全市场期货品种相对历史均价的偏离度，支持一键设阈、实时预警与邮件推送。">
+<meta name="author" content="公歧子">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M7 22l5-7 4 4 5-9 4 5' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+:root{
+  --bg:#f4f7fc;--panel:#fff;--ink:#111827;--muted:#5b6779;--line:#e4eaf4;
+  --brand:#2563eb;--brand2:#1d4ed8;--brandsoft:#eaf1ff;
+  --up:#d92b2b;--down:#0e9f6e;--warn:#b45309;--warnbg:#fff8e6;--warnline:#f5d68a;
+  --okbg:#e9f8f1;--okline:#a5e0c6;
+  --code:#0f172a;--codeink:#e2e8f0;--shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px -12px rgba(16,24,40,.18);
+}
+body{margin:0;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+  font:15px/1.78 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+a{color:var(--brand);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+/* ---------- 顶栏 ---------- */
+.topbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:58px}
+.brand{font-weight:700;font-size:15.5px;color:var(--ink);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.brand:hover{text-decoration:none}
+.brand i{font-style:normal;font-size:18px}
+.topbar nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:14px;padding:6px 11px;border-radius:8px;white-space:nowrap}
+.topbar nav a:hover{background:var(--brandsoft);color:var(--brand2);text-decoration:none}
+.topbar nav a.on{background:var(--brandsoft);color:var(--brand2);font-weight:600}
+/* ---------- 通用 ---------- */
+h1,h2,h3,h4{line-height:1.35;margin:0 0 .5em}
+h2{font-size:22px;margin-top:2.1em;padding-top:.5em;border-top:1px solid var(--line)}
+h2:first-child{border-top:none;margin-top:0;padding-top:0}
+h3{font-size:16.5px;margin-top:1.7em}
+h4{font-size:15px;margin-top:1.3em;color:var(--muted)}
+p{margin:.6em 0}
+ul,ol{margin:.6em 0;padding-left:1.5em}
+li{margin:.28em 0}
+code{background:#eef2f9;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+  font:13px/1.5 "Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;color:#1f3a8a}
+pre{background:var(--code);color:var(--codeink);border-radius:12px;padding:16px 18px;overflow:auto;margin:14px 0;
+  font:13px/1.7 "Cascadia Mono",Consolas,"SF Mono",Menlo,monospace}
+pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
+blockquote{margin:14px 0;padding:12px 16px;background:var(--panel);border-left:3px solid var(--brand);
+  border-radius:0 10px 10px 0;color:var(--muted);box-shadow:var(--shadow)}
+hr{border:none;border-top:1px solid var(--line);margin:2em 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.note,.warn,.ok{border-radius:12px;padding:13px 16px;margin:14px 0;font-size:14px}
+.note{background:var(--brandsoft);border:1px solid #c9dcff}
+.warn{background:var(--warnbg);border:1px solid var(--warnline)}
+.ok{background:var(--okbg);border:1px solid var(--okline)}
+.note b,.warn b,.ok b{font-weight:700}
+/* ---------- 表格 ---------- */
+.tbwrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#f7f9fd;font-weight:600;color:#334155;white-space:nowrap;position:sticky;top:0}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafcff}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.up{color:var(--up);font-weight:600}
+.down{color:var(--down);font-weight:600}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#eef2f9;
+  border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.red{background:#fdeaea;border-color:#f6c9c9;color:#b91c1c}
+.tag.green{background:#e9f8f1;border-color:#a5e0c6;color:#047857}
+.tag.blue{background:var(--brandsoft);border-color:#c9dcff;color:var(--brand2)}
+/* ---------- 首页 ---------- */
+.hero{padding:54px 0 40px;background:linear-gradient(170deg,#eef4ff 0%,#f4f7fc 62%)}
+.hero h1{font-size:34px;letter-spacing:-.4px;margin-bottom:14px}
+.hero .lead{font-size:16.5px;color:var(--muted);max-width:760px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 26px}
+.badges span{font-size:12.5px;padding:4px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);
+  color:#334155;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:11px;font-size:14.5px;
+  font-weight:600;border:1px solid transparent;transition:.16s}
+.btn:hover{text-decoration:none;transform:translateY(-1px)}
+.btn.p{background:var(--brand);color:#fff;box-shadow:0 6px 16px -6px rgba(37,99,235,.6)}
+.btn.p:hover{background:var(--brand2)}
+.btn.s{background:#fff;color:#334155;border-color:var(--line)}
+.btn.s:hover{border-color:#c9dcff;color:var(--brand2)}
+.btn.g{background:#111827;color:#fff}
+.btn small{font-weight:400;opacity:.8}
+.sect{padding:44px 0}
+.sect>h2{border:none;margin-top:0;padding-top:0;font-size:24px;text-align:center}
+.sect>.sub{text-align:center;color:var(--muted);margin:-.2em 0 30px}
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.feat{padding:18px 18px 16px;border-radius:14px}
+.feat .ic{font-size:20px;line-height:1}
+.feat h3{font-size:15px;margin:9px 0 5px}
+.feat p{margin:0;font-size:13.5px;color:var(--muted)}
+.doc-card{padding:22px;border-radius:14px;display:block;color:inherit}
+.doc-card:hover{text-decoration:none;border-color:#c9dcff;transform:translateY(-2px);transition:.16s}
+.doc-card h3{margin:0 0 6px;font-size:17px;color:var(--brand2)}
+.doc-card p{margin:0 0 10px;font-size:13.5px;color:var(--muted)}
+.doc-card ul{margin:0;padding-left:1.2em;font-size:13px;color:var(--muted)}
+.shot{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow)}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{font-size:12.5px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line);text-align:center}
+/* ---------- 文档页 ---------- */
+.doc{display:grid;grid-template-columns:230px minmax(0,1fr);gap:36px;padding:32px 0 70px;align-items:start}
+.toc{position:sticky;top:78px;font-size:13.5px;border-left:2px solid var(--line);padding:2px 0 2px 14px;max-height:calc(100vh - 110px);overflow:auto}
+.toc b{display:block;color:#334155;margin-bottom:8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.toc a{display:block;color:var(--muted);padding:3.5px 0;line-height:1.5}
+.toc a:hover{color:var(--brand2);text-decoration:none}
+.toc a.h3{padding-left:12px;font-size:12.8px;color:#8a94a6}
+.content{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:34px 38px 42px;box-shadow:var(--shadow)}
+.content>h1{font-size:27px;margin-bottom:6px}
+.content>.meta{color:var(--muted);font-size:13px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0}
+.kv div{background:#f8fafd;border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+.kv b{display:block;font-size:20px;color:var(--brand2);font-variant-numeric:tabular-nums}
+.kv span{font-size:12.5px;color:var(--muted)}
+/* ---------- 页脚 ---------- */
+footer{border-top:1px solid var(--line);background:#fff;padding:28px 0 34px;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+footer b{color:#334155}
+.sig{font-weight:600}
+@media(max-width:960px){
+  .g3,.g4{grid-template-columns:repeat(2,1fr)}
+  .doc{grid-template-columns:1fr;gap:18px}
+  .toc{position:static;border-left:none;border-top:1px solid var(--line);padding:12px 0 0;max-height:none}
+  .toc a{display:inline-block;margin-right:12px}
+  .content{padding:24px 20px 30px}
+  .hero h1{font-size:26px}
+}
+@media(max-width:620px){.g3,.g4,.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body><header class="topbar"><div class="wrap">
+<a class="brand" href="index.html"><i>📈</i>加权（仓权）合约监控面板</a>
+<nav>
+<a href="index.html" class="on">首页</a>
+<a href="usage.html">使用说明</a>
+<a href="datasource.html">数据源说明</a>
+<a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">GitHub ↗</a>
+</nav></div></header>
+<section class="hero"><div class="wrap">
+<h1>加权（仓权）合约监控面板</h1>
+<p class="lead">用<b>加权（持仓量加权）合约</b>数据，一屏监控全市场 88 个期货品种相对<b>历史均价</b>的偏离度；
+偏离越极端越靠前，一键把阈值设到该周期的动态均线，越界即刻预警并邮件推送 —— 内置五层防轰炸守护。</p>
+<div class="badges">
+<span>🐍 Python 标准库 · 零第三方依赖</span>
+<span>🔌 曲合网 / 天勤 TqSdk 双数据源可切</span>
+<span>📊 88 个品种（曲合 88 / 天勤 87）</span>
+<span>🧩 单文件 HTML 前端 · 无 CDN</span>
+<span>📦 单文件 EXE 免安装</span>
+<span>🛡 五层邮件防轰炸</span>
+</div>
+<div class="cta">
+<a class="btn p" href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/download/v1.0.0/futures-weighted-panel-v1.0.0-win64.exe">⬇ 下载 Windows 单文件 EXE <small>94 MB</small></a>
+<a class="btn s" href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/download/v1.0.0/futures-weighted-panel-v1.0.0-src.zip">⬇ 下载源码包 ZIP</a>
+<a class="btn s" href="usage.html">📖 详细使用说明</a>
+<a class="btn s" href="datasource.html">🔍 详细数据源说明</a>
+</div>
+<div class="note" style="max-width:760px">EXE <b>开箱即用</b>：默认使用曲合网数据源（<b>免账号、免密钥</b>），双击即有数据；
+需要 10 年日K 历史或分钟K 4000 根时，再在天勤源填入快期账号即可。</div>
+</div></section>
+
+<section class="sect"><div class="wrap">
+<h2>两份详细文档</h2>
+<p class="sub">GitHub 仓库内以 HTML 形式提供，可直接在线浏览</p>
+<div class="grid g2">
+<a class="doc-card card" href="usage.html">
+  <h3>📖 详细使用说明</h3>
+  <p>从下载到上手，逐项讲清每个按钮和每个参数。</p>
+  <ul>
+    <li>快速开始（EXE / 源码两种方式）</li>
+    <li>K线缩放、平移、全量数据与十字光标</li>
+    <li>阈值基准：一键设阈 / 周期 / 均线参数</li>
+    <li>偏离度百分比的计算口径</li>
+    <li>预警与五层防轰炸守护</li>
+    <li>设置面板全参数表 · 邮件配置 · 常见问题</li>
+  </ul>
+</a>
+<a class="doc-card card" href="datasource.html">
+  <h3>🔍 详细数据源说明</h3>
+  <p>两个数据源的接口、口径、覆盖差异与全部实测数据。</p>
+  <ul>
+    <li>曲合网（金投网）与天勤 TqSdk 接口细节</li>
+    <li>加权合约口径一致性验证</li>
+    <li>88 个品种双源代码映射总表</li>
+    <li>曲合实际少 5 个「僵尸品种」的原因</li>
+    <li>K线数据上限与缓存、刷新策略</li>
+    <li>交易时段判定（行情数据新鲜度）</li>
+  </ul>
+</a>
+</div>
+</div></section>
+
+<section class="sect" style="background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)">
+<div class="wrap">
+<h2>核心能力</h2>
+<p class="sub">围绕「找极端、设阈值、盯突破」这条主线</p>
+<div class="grid g4">
+  <div class="feat card"><div class="ic">📉</div><h3>偏离度排序</h3><p>以历史均价为 0 基准，高低两侧各自归一化到 100%，越极端越靠前。</p></div>
+  <div class="feat card"><div class="ic">🎯</div><h3>一键设阈</h3><p>把上/下阈直接设成所选周期 MA 的<b>动态均值</b>（最后一根用实时价替代，每个 tick 都在变）。</p></div>
+  <div class="feat card"><div class="ic">📊</div><h3>全量 K 线</h3><p>一次取回该周期全部 K 线，本地切片缩放平移，滚轮到任意位置都不再请求。</p></div>
+  <div class="feat card"><div class="ic">⚡</div><h3>实时分时</h3><p>2 秒一档实时价驱动主面板；图表最后一根 K 线用实时价重绘。</p></div>
+  <div class="feat card"><div class="ic">🔌</div><h3>双源热切换</h3><p>顶栏下拉即切曲合 ↔ 天勤，切换后历史 H/L/M 自动按新源重算。</p></div>
+  <div class="feat card"><div class="ic">🛡</div><h3>五层防轰炸</h3><p>边沿触发＋滞回复位＋交易时段门禁＋冷却＋全局配额，一天不再 720 封。</p></div>
+  <div class="feat card"><div class="ic">🌗</div><h3>双主题</h3><p>浅色（默认）与深蓝一键互切，Canvas 图表配色同步切换。</p></div>
+  <div class="feat card"><div class="ic">📦</div><h3>单文件 EXE</h3><p>PyInstaller 打包，内置 tqsdk / pandas / numpy / scipy，拷到任意目录即可运行。</p></div>
+</div>
+</div></section>
+
+<section class="sect"><div class="wrap">
+<h2>界面预览</h2>
+<p class="sub">浅色为默认主题，深蓝一键切换</p>
+<div class="grid g2">
+  <figure class="shot" style="margin:0"><img src="images/main-light.png" alt="浅色主界面"><figcaption>浅色主界面（默认）· 条右侧为偏离度百分比</figcaption></figure>
+  <figure class="shot" style="margin:0"><img src="images/main-dark.png" alt="深蓝主界面"><figcaption>深蓝模式 · Canvas 配色同步切换</figcaption></figure>
+  <figure class="shot" style="margin:0"><img src="images/kline.png" alt="日K六均线"><figcaption>日K · 6 条均线（MA5/8/10/20/30/50）+ 阈值虚线</figcaption></figure>
+  <figure class="shot" style="margin:0"><img src="images/timeshare.png" alt="分时图"><figcaption>分时图 · 含均价线</figcaption></figure>
+</div>
+<div class="grid g2" style="margin-top:16px">
+  <figure class="shot" style="margin:0"><img src="images/settings-guard.png" alt="防轰炸守护设置"><figcaption>设置 · 预警防轰炸守护（含实时抑制统计）</figcaption></figure>
+  <figure class="shot" style="margin:0"><img src="images/closed-quiet.png" alt="休市静默"><figcaption>休市 · 卡片标记「🌙 休市·静默」</figcaption></figure>
+</div>
+</div></section>
+
+<section class="sect" style="background:#fff;border-top:1px solid var(--line)">
+<div class="wrap">
+<h2>快速开始</h2>
+<p class="sub">三种方式，任选其一</p>
+<div class="grid g3">
+  <div class="card" style="padding:20px">
+    <h3>① 单文件 EXE</h3>
+    <p style="font-size:13.5px;color:var(--muted)">免安装 Python，双击即用。</p>
+    <ol style="font-size:13.5px">
+      <li>下载 <a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/download/v1.0.0/futures-weighted-panel-v1.0.0-win64.exe">EXE</a></li>
+      <li>双击运行（自解压约 5~10 秒）</li>
+      <li>浏览器自动打开 <code>127.0.0.1:8689</code></li>
+    </ol>
+  </div>
+  <div class="card" style="padding:20px">
+    <h3>② 源码 · Windows</h3>
+    <p style="font-size:13.5px;color:var(--muted)">下载 <a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/download/v1.0.0/futures-weighted-panel-v1.0.0-src.zip">源码 ZIP</a> 解压后双击 <code>启动看板.bat</code>。</p>
+    <pre><code>python 服务端.py
+# 或
+启动看板.bat</code></pre>
+  </div>
+  <div class="card" style="padding:20px">
+    <h3>③ 源码 · 命令行</h3>
+    <p style="font-size:13.5px;color:var(--muted)">默认 8689 端口，可自定义。</p>
+    <pre><code>python 服务端.py --port 8689
+python 服务端.py --no-browser</code></pre>
+  </div>
+</div>
+<div class="ok">📌 <b>启动顺序已优化</b>：服务端<b>先监听端口、再后台预热</b>历史日K。打开即刻可访问，不会出现
+<code>ERR_CONNECTION_REFUSED</code>；顶部「更新 / 耗时」随后自动补齐。</div>
+</div></section>
+
+<section class="sect"><div class="wrap">
+<h2>数据源一览</h2>
+<p class="sub">同为持仓量加权口径，可按需切换 · <a href="datasource.html">查看完整数据源说明 →</a></p>
+<div class="tbwrap"><table>
+<thead><tr><th>数据源</th><th>账号</th><th>加权口径</th><th>品种数</th><th>日K 回溯</th><th>分钟K 上限</th><th>特点</th></tr></thead>
+<tbody>
+<tr><td><b>曲合网</b>（金投网）</td><td><span class="tag green">免账号</span></td><td><code>JO_xxxxxx</code> 加权合约</td><td class="num">88（有行情 82）</td><td>约 3.5 年</td><td>单次 500 根</td><td>秒开、无会话问题</td></tr>
+<tr><td><b>天勤</b> TqSdk</td><td><span class="tag">需快期账号</span></td><td><code>KQ.i@交易所.品种</code> 指数合约</td><td class="num">87</td><td>2016 年起（10 年+）</td><td>4000 根</td><td>历史深、推送式实时</td></tr>
+</tbody></table></div>
+<div class="note">两者<b>口径一致</b>（均为持仓量加权），切换后历史 H/L/M 会自动按新源重算。</div>
+</div></section>
+<footer><div class="wrap">
+<div><b>加权（仓权）合约监控面板</b> · 曲合网 / 天勤 TqSdk 双数据源 · Python 标准库 + 单文件 HTML</div>
+<div class="sig">设计：公歧子　微信：gongqizi0</div>
+<div><a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">仓库</a> · <a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/tag/v1.0.0" target="_blank" rel="noopener">下载</a> · <a href="usage.html">使用说明</a> · <a href="datasource.html">数据源说明</a></div>
+</div></footer></body></html>

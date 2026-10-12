@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>详细数据源说明 · 加权（仓权）合约监控面板</title>
+<meta name="description" content="曲合网（金投网）与天勤 TqSdk 两个数据源的接口细节、加权口径一致性、88 品种双源映射总表、覆盖差异原因与实测数据。">
+<meta name="author" content="公歧子">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M7 22l5-7 4 4 5-9 4 5' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+:root{
+  --bg:#f4f7fc;--panel:#fff;--ink:#111827;--muted:#5b6779;--line:#e4eaf4;
+  --brand:#2563eb;--brand2:#1d4ed8;--brandsoft:#eaf1ff;
+  --up:#d92b2b;--down:#0e9f6e;--warn:#b45309;--warnbg:#fff8e6;--warnline:#f5d68a;
+  --okbg:#e9f8f1;--okline:#a5e0c6;
+  --code:#0f172a;--codeink:#e2e8f0;--shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px -12px rgba(16,24,40,.18);
+}
+body{margin:0;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+  font:15px/1.78 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+a{color:var(--brand);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+/* ---------- 顶栏 ---------- */
+.topbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:58px}
+.brand{font-weight:700;font-size:15.5px;color:var(--ink);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.brand:hover{text-decoration:none}
+.brand i{font-style:normal;font-size:18px}
+.topbar nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:14px;padding:6px 11px;border-radius:8px;white-space:nowrap}
+.topbar nav a:hover{background:var(--brandsoft);color:var(--brand2);text-decoration:none}
+.topbar nav a.on{background:var(--brandsoft);color:var(--brand2);font-weight:600}
+/* ---------- 通用 ---------- */
+h1,h2,h3,h4{line-height:1.35;margin:0 0 .5em}
+h2{font-size:22px;margin-top:2.1em;padding-top:.5em;border-top:1px solid var(--line)}
+h2:first-child{border-top:none;margin-top:0;padding-top:0}
+h3{font-size:16.5px;margin-top:1.7em}
+h4{font-size:15px;margin-top:1.3em;color:var(--muted)}
+p{margin:.6em 0}
+ul,ol{margin:.6em 0;padding-left:1.5em}
+li{margin:.28em 0}
+code{background:#eef2f9;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+  font:13px/1.5 "Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;color:#1f3a8a}
+pre{background:var(--code);color:var(--codeink);border-radius:12px;padding:16px 18px;overflow:auto;margin:14px 0;
+  font:13px/1.7 "Cascadia Mono",Consolas,"SF Mono",Menlo,monospace}
+pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
+blockquote{margin:14px 0;padding:12px 16px;background:var(--panel);border-left:3px solid var(--brand);
+  border-radius:0 10px 10px 0;color:var(--muted);box-shadow:var(--shadow)}
+hr{border:none;border-top:1px solid var(--line);margin:2em 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.note,.warn,.ok{border-radius:12px;padding:13px 16px;margin:14px 0;font-size:14px}
+.note{background:var(--brandsoft);border:1px solid #c9dcff}
+.warn{background:var(--warnbg);border:1px solid var(--warnline)}
+.ok{background:var(--okbg);border:1px solid var(--okline)}
+.note b,.warn b,.ok b{font-weight:700}
+/* ---------- 表格 ---------- */
+.tbwrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#f7f9fd;font-weight:600;color:#334155;white-space:nowrap;position:sticky;top:0}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafcff}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.up{color:var(--up);font-weight:600}
+.down{color:var(--down);font-weight:600}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#eef2f9;
+  border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.red{background:#fdeaea;border-color:#f6c9c9;color:#b91c1c}
+.tag.green{background:#e9f8f1;border-color:#a5e0c6;color:#047857}
+.tag.blue{background:var(--brandsoft);border-color:#c9dcff;color:var(--brand2)}
+/* ---------- 首页 ---------- */
+.hero{padding:54px 0 40px;background:linear-gradient(170deg,#eef4ff 0%,#f4f7fc 62%)}
+.hero h1{font-size:34px;letter-spacing:-.4px;margin-bottom:14px}
+.hero .lead{font-size:16.5px;color:var(--muted);max-width:760px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 26px}
+.badges span{font-size:12.5px;padding:4px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);
+  color:#334155;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:11px;font-size:14.5px;
+  font-weight:600;border:1px solid transparent;transition:.16s}
+.btn:hover{text-decoration:none;transform:translateY(-1px)}
+.btn.p{background:var(--brand);color:#fff;box-shadow:0 6px 16px -6px rgba(37,99,235,.6)}
+.btn.p:hover{background:var(--brand2)}
+.btn.s{background:#fff;color:#334155;border-color:var(--line)}
+.btn.s:hover{border-color:#c9dcff;color:var(--brand2)}
+.btn.g{background:#111827;color:#fff}
+.btn small{font-weight:400;opacity:.8}
+.sect{padding:44px 0}
+.sect>h2{border:none;margin-top:0;padding-top:0;font-size:24px;text-align:center}
+.sect>.sub{text-align:center;color:var(--muted);margin:-.2em 0 30px}
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.feat{padding:18px 18px 16px;border-radius:14px}
+.feat .ic{font-size:20px;line-height:1}
+.feat h3{font-size:15px;margin:9px 0 5px}
+.feat p{margin:0;font-size:13.5px;color:var(--muted)}
+.doc-card{padding:22px;border-radius:14px;display:block;color:inherit}
+.doc-card:hover{text-decoration:none;border-color:#c9dcff;transform:translateY(-2px);transition:.16s}
+.doc-card h3{margin:0 0 6px;font-size:17px;color:var(--brand2)}
+.doc-card p{margin:0 0 10px;font-size:13.5px;color:var(--muted)}
+.doc-card ul{margin:0;padding-left:1.2em;font-size:13px;color:var(--muted)}
+.shot{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow)}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{font-size:12.5px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line);text-align:center}
+/* ---------- 文档页 ---------- */
+.doc{display:grid;grid-template-columns:230px minmax(0,1fr);gap:36px;padding:32px 0 70px;align-items:start}
+.toc{position:sticky;top:78px;font-size:13.5px;border-left:2px solid var(--line);padding:2px 0 2px 14px;max-height:calc(100vh - 110px);overflow:auto}
+.toc b{display:block;color:#334155;margin-bottom:8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.toc a{display:block;color:var(--muted);padding:3.5px 0;line-height:1.5}
+.toc a:hover{color:var(--brand2);text-decoration:none}
+.toc a.h3{padding-left:12px;font-size:12.8px;color:#8a94a6}
+.content{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:34px 38px 42px;box-shadow:var(--shadow)}
+.content>h1{font-size:27px;margin-bottom:6px}
+.content>.meta{color:var(--muted);font-size:13px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0}
+.kv div{background:#f8fafd;border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+.kv b{display:block;font-size:20px;color:var(--brand2);font-variant-numeric:tabular-nums}
+.kv span{font-size:12.5px;color:var(--muted)}
+/* ---------- 页脚 ---------- */
+footer{border-top:1px solid var(--line);background:#fff;padding:28px 0 34px;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+footer b{color:#334155}
+.sig{font-weight:600}
+@media(max-width:960px){
+  .g3,.g4{grid-template-columns:repeat(2,1fr)}
+  .doc{grid-template-columns:1fr;gap:18px}
+  .toc{position:static;border-left:none;border-top:1px solid var(--line);padding:12px 0 0;max-height:none}
+  .toc a{display:inline-block;margin-right:12px}
+  .content{padding:24px 20px 30px}
+  .hero h1{font-size:26px}
+}
+@media(max-width:620px){.g3,.g4,.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body><header class="topbar"><div class="wrap">
+<a class="brand" href="index.html"><i>📈</i>加权（仓权）合约监控面板</a>
+<nav>
+<a href="index.html">首页</a>
+<a href="usage.html">使用说明</a>
+<a href="datasource.html" class="on">数据源说明</a>
+<a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">GitHub ↗</a>
+</nav></div></header>
+<div class="wrap doc">
+<aside class="toc"><b>目录</b><a href="#overview">1. 两源总览</a><a href="#quhe">2. 曲合网（金投网）</a><a href="#tianqin">3. 天勤 TqSdk</a><a href="#consistent">4. 加权口径一致性</a><a href="#mapping">5. 88 品种双源映射总表</a><a href="#map-shfe" class=h3>上期所 SHFE</a><a href="#map-ine" class=h3>上期能源 INE</a><a href="#map-dce" class=h3>大商所 DCE</a><a href="#map-czce" class=h3>郑商所 CZCE</a><a href="#map-gfex" class=h3>广期所 GFEX</a><a href="#map-cffex" class=h3>中金所 CFFEX</a><a href="#coverage">6. 覆盖差异与原因</a><a href="#newvarieties">7. 曲合 9 个新品种补齐</a><a href="#limits">8. K 线上限与全量策略</a><a href="#cache">9. 缓存与刷新策略</a><a href="#session">10. 交易时段判定</a><a href="#verify">11. 数据校验方法</a><a href="#disclaimer">12. 免责声明</a></aside>
+<main class="content">
+<h1>详细数据源说明</h1>
+<p class="meta">适用版本 v1.0.0 · 实测日期 2026-10-12 ~ 13 · 设计：公歧子　微信：gongqizi0</p>
+
+<div class="kv">
+<div><b>88</b><span>双源映射并集品种数</span></div>
+<div><b>88</b><span>曲合网加权合约页面</span></div>
+<div><b>82</b><span>曲合实际有行情的品种</span></div>
+<div><b>87</b><span>天勤可用品种</span></div>
+<div><b>88 / 0.5s</b><span>曲合实时行情拉取（个 / 耗时）</span></div>
+<div><b>87 / 0.2s</b><span>天勤实时行情拉取（个 / 耗时）</span></div>
+</div>
+
+<h2 id="overview">1. 两源总览</h2>
+<p>本项目同时接入 <b>曲合网（金投网）</b> 与 <b>天勤 TqSdk</b> 两个数据源，两者提供的都是
+<b>持仓量加权</b>的「加权合约 / 指数合约」行情，口径一致，可随时热切换。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>对比项</th><th>曲合网（金投网）</th><th>天勤 TqSdk</th></tr></thead>
+<tbody>
+<tr><td>是否需要账号</td><td><span class="tag green">免账号、免密钥</span></td><td><span class="tag">需快期账号 + 密码</span></td></tr>
+<tr><td>加权合约写法</td><td><code>JO_xxxxxx</code>（页面上的「XX加权」）</td><td><code>KQ.i@交易所.品种</code>（官方指数合约）</td></tr>
+<tr><td>加权算法</td><td>金投网提供的持仓量加权</td><td>官方按持仓量加权计算</td></tr>
+<tr><td>品种数</td><td>88（其中 <b>82</b> 个有行情）</td><td>87</td></tr>
+<tr><td>实时行情</td><td>轮询 HTTP 接口，88 个约 0.5 秒</td><td>推送式订阅，87 个约 0.2 秒</td></tr>
+<tr><td>分钟 K 上限</td><td><b>500 根</b>（接口硬上限）</td><td>4000 根</td></tr>
+<tr><td>日 K 回溯</td><td>约 3.5 年（2023/08 起，新品种更晚）</td><td>2016/01 起（10 年+）</td></tr>
+<tr><td>首次连接耗时</td><td>约 1 秒（缓存命中）</td><td>约 18~35 秒（首连登录 + 订阅）</td></tr>
+<tr><td>会话稳定性</td><td>无状态 HTTP，无会话问题</td><td>需维持连接，tqsdk 有单线程约束</td></tr>
+</tbody></table></div>
+<div class="note">默认数据源为<b>曲合网</b>：任何人下载 EXE 双击即有数据，无需注册。需要深历史时再切天勤。</div>
+
+<h2 id="quhe">2. 曲合网（金投网）</h2>
+<h3>页面与代码来源</h3>
+<p>每个加权合约对应一个页面：</p>
+<pre><code>https://m.quheqihuo.com/quote/hq-&lt;id&gt;.html</code></pre>
+<p>全量遍历 <code>hq-1 ~ hq-1500</code>，取 <code>symbolName</code> 含「加权」的页面，共 <b>88 个</b>。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>区间</th><th>内容</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>hq-983 ~ hq-1053</code></td><td>商品期货加权</td><td>老品种集中区</td></tr>
+<tr><td><code>hq-1101 ~ hq-1108</code></td><td>金融期货加权</td><td>中金所 8 个</td></tr>
+<tr><td><code>hq-1136 / 1163 / 1167 / 1168 / 1174 / 1176 / 1185 / 1247 / 1248</code></td><td>2024 年后上市新品种</td><td><b>散落分布，极易漏采</b></td></tr>
+</tbody></table></div>
+
+<h3>数据接口</h3>
+<div class="tbwrap"><table>
+<thead><tr><th>用途</th><th>接口</th><th>关键字段</th></tr></thead>
+<tbody>
+<tr><td>实时行情</td><td><code>api.jijinhao.com</code> 批量报价</td><td><code>status</code>（100 交易中 / 110、120 休市）、<code>time</code>（毫秒时间戳）</td></tr>
+<tr><td>分时数据</td><td>当日分时接口</td><td>约 145 个点</td></tr>
+<tr><td>分钟 K</td><td>5 / 15 / 30 分钟接口</td><td>单次上限 <b>500 根</b>（<code>pageSize</code> 参数无效）</td></tr>
+<tr><td>日 K</td><td>日线接口</td><td>约 765 根（2023/08 起）</td></tr>
+</tbody></table></div>
+<div class="warn">⚠️ <code>status</code> 字段是本项目判断交易时段的第一优先级信号；<code>time</code> 字段配合「行情新鲜度」判断，可自动适配夜盘差异与节假日。</div>
+
+<h3>限速与并发</h3>
+<p>曲合接口对单 IP 有软限速。本项目用线程池并发拉取，并内置<b>单站重试</b>（失败隔 350ms 重试 1 次）；
+88 个品种实时行情实测 0.5 秒完成。</p>
+
+<h2 id="tianqin">3. 天勤 TqSdk</h2>
+<h3>账号与登录</h3>
+<p>使用<b>快期账号</b>登录（在 <code>⚙️ 设置 → 数据源</code> 填写）。登录成功后自动订阅全部品种的指数合约。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>项</th><th>实测值</th></tr></thead>
+<tbody>
+<tr><td>指数合约写法</td><td><code>KQ.i@&lt;交易所&gt;.&lt;品种&gt;</code>，如 <code>KQ.i@SHFE.cu</code></td></tr>
+<tr><td>品种发现方式</td><td><code>api.query_quotes(ins_class="FUTURE")</code> 反推产品清单</td></tr>
+<tr><td>订阅合约数</td><td>174 个（主连 + 指数，按品种需求）</td></tr>
+<tr><td>有效品种数</td><td>87</td></tr>
+<tr><td>K 线上限</td><td>分钟 K <b>4000 根</b>、日 K <b>3600 根</b></td></tr>
+<tr><td>首连耗时</td><td>18~35 秒</td></tr>
+</tbody></table></div>
+
+<h3>单线程约束与子线程 Actor</h3>
+<div class="warn">⚠️ <b>tqsdk 有严格的单线程约束</b>：所有 API 调用必须在同一线程内完成，跨线程直接调用会抛异常。
+本项目在 <code>天勤行情.py</code> 里实现了一个 <b>子线程 Actor + 任务队列</b> 模型 ——
+HTTP 服务线程把请求投递到队列，由专职线程串行执行 tqsdk 调用并回传结果，从而在 Flask 式多线程服务中安全使用 tqsdk。</div>
+
+<h3><code>trading</code> 字段的坑</h3>
+<p>tqsdk 返回的行情字典中没有可靠的「是否交易中」字段。早期实现里写死了 <code>"trading": True</code>，
+会<b>绕过邮件守护的交易时段门禁</b>；现已改为 <code>None</code>，统一交由「行情数据新鲜度」判断。</p>
+
+<h2 id="consistent">4. 加权口径一致性</h2>
+<p>两个数据源虽然代码写法不同，但<b>口径一致</b>——均为<b>持仓量加权</b>：</p>
+<pre><code>加权价 = Σ(合约收盘价 × 该合约持仓量) / Σ(持仓量)</code></pre>
+<div class="tbwrap"><table>
+<thead><tr><th>数据源</th><th>加权合约</th><th>加权算法来源</th></tr></thead>
+<tbody>
+<tr><td>曲合网</td><td><code>JO_xxxxxx</code> 加权合约</td><td>金投网直接提供「XX加权」</td></tr>
+<tr><td>天勤</td><td><code>KQ.i@交易所.品种</code> 指数合约</td><td>官方按持仓量加权计算</td></tr>
+</tbody></table></div>
+<div class="ok">✅ 实测验证：同一品种在两天勤/曲合两侧的加权价走势一致（差值在最小变动价位内），切换数据源后
+历史 H / L / M 会自动按新源重算，偏离度排名随之更新。</div>
+
+<h2 id="mapping">5. 88 品种双源映射总表</h2>
+<p>统一主键采用与天勤一致的写法 <code>交易所.品种</code>，前端与服务端以此为唯一标识。
+下表为 <code>品种表.py</code> 的完整内容。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>交易所</th><th class="num">品种数</th><th>统一主键前缀</th></tr></thead>
+<tbody>
+<tr><td>上期所</td><td class="num">20</td><td><code>SHFE.</code></td></tr>
+<tr><td>上期能源</td><td class="num">5</td><td><code>INE.</code></td></tr>
+<tr><td>大商所</td><td class="num">23</td><td><code>DCE.</code></td></tr>
+<tr><td>郑商所</td><td class="num">27</td><td><code>CZCE.</code></td></tr>
+<tr><td>广期所</td><td class="num">5</td><td><code>GFEX.</code></td></tr>
+<tr><td>中金所</td><td class="num">8</td><td><code>CFFEX.</code></td></tr>
+<tr><td><b>合计</b></td><td class="num"><b>88</b></td><td>曲合 88 个 / 天勤 87 个</td></tr>
+</tbody></table></div>
+<h4 id="map-shfe">上期所 <span class="tag">SHFE</span>
+<span class="tag blue">20 个品种</span></h4>
+<div class="tbwrap"><table>
+<thead><tr><th>品种</th><th>统一主键</th><th>曲合加权代码</th><th>天勤指数合约</th><th>状态</th></tr></thead>
+<tbody>
+<tr><td><b>沪铜</b></td><td><code>SHFE.cu</code></td><td><code>JO_336254</code></td><td><code>KQ.i@SHFE.cu</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>沪铝</b></td><td><code>SHFE.al</code></td><td><code>JO_336255</code></td><td><code>KQ.i@SHFE.al</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>沪锌</b></td><td><code>SHFE.zn</code></td><td><code>JO_336256</code></td><td><code>KQ.i@SHFE.zn</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>沪铅</b></td><td><code>SHFE.pb</code></td><td><code>JO_336257</code></td><td><code>KQ.i@SHFE.pb</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>沪镍</b></td><td><code>SHFE.ni</code></td><td><code>JO_336253</code></td><td><code>KQ.i@SHFE.ni</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>沪锡</b></td><td><code>SHFE.sn</code></td><td><code>JO_336258</code></td><td><code>KQ.i@SHFE.sn</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>沪金</b></td><td><code>SHFE.au</code></td><td><code>JO_336267</code></td><td><code>KQ.i@SHFE.au</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>沪银</b></td><td><code>SHFE.ag</code></td><td><code>JO_336268</code></td><td><code>KQ.i@SHFE.ag</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>螺纹钢</b></td><td><code>SHFE.rb</code></td><td><code>JO_336261</code></td><td><code>KQ.i@SHFE.rb</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>线材</b></td><td><code>SHFE.wr</code></td><td><code>JO_336269</code></td><td><code>KQ.i@SHFE.wr</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>热卷</b></td><td><code>SHFE.hc</code></td><td><code>JO_336262</code></td><td><code>KQ.i@SHFE.hc</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>不锈钢</b></td><td><code>SHFE.ss</code></td><td><code>JO_336259</code></td><td><code>KQ.i@SHFE.ss</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>燃料油</b></td><td><code>SHFE.fu</code></td><td><code>JO_336263</code></td><td><code>KQ.i@SHFE.fu</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>沥青</b></td><td><code>SHFE.bu</code></td><td><code>JO_336264</code></td><td><code>KQ.i@SHFE.bu</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>橡胶</b></td><td><code>SHFE.ru</code></td><td><code>JO_336265</code></td><td><code>KQ.i@SHFE.ru</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>纸浆</b></td><td><code>SHFE.sp</code></td><td><code>JO_336266</code></td><td><code>KQ.i@SHFE.sp</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>氧化铝</b></td><td><code>SHFE.ao</code></td><td><code>JO_336260</code></td><td><code>KQ.i@SHFE.ao</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>合成橡胶</b></td><td><code>SHFE.br</code></td><td><code>JO_336319</code></td><td><code>KQ.i@SHFE.br</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>铝合金</b></td><td><code>SHFE.ad</code></td><td><code>JO_346083</code></td><td><code>KQ.i@SHFE.ad</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>胶版纸</b></td><td><code>SHFE.op</code></td><td><code>JO_347513</code></td><td><code>KQ.i@SHFE.op</code></td><td><span class="tag green">正常</span></td></tr>
+</tbody></table></div>
+<h4 id="map-ine">上期能源 <span class="tag">INE</span>
+<span class="tag blue">5 个品种</span></h4>
+<div class="tbwrap"><table>
+<thead><tr><th>品种</th><th>统一主键</th><th>曲合加权代码</th><th>天勤指数合约</th><th>状态</th></tr></thead>
+<tbody>
+<tr><td><b>原油</b></td><td><code>INE.sc</code></td><td><code>JO_336270</code></td><td><code>KQ.i@INE.sc</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>低硫燃油</b></td><td><code>INE.lu</code></td><td><code>JO_336271</code></td><td><code>KQ.i@INE.lu</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>20号胶</b></td><td><code>INE.nr</code></td><td><code>JO_336272</code></td><td><code>KQ.i@INE.nr</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>国际铜</b></td><td><code>INE.bc</code></td><td><code>JO_336273</code></td><td><code>KQ.i@INE.bc</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>集运欧线</b></td><td><code>INE.ec</code></td><td><code>JO_336328</code></td><td><code>KQ.i@INE.ec</code></td><td><span class="tag green">正常</span></td></tr>
+</tbody></table></div>
+<h4 id="map-dce">大商所 <span class="tag">DCE</span>
+<span class="tag blue">23 个品种</span></h4>
+<div class="tbwrap"><table>
+<thead><tr><th>品种</th><th>统一主键</th><th>曲合加权代码</th><th>天勤指数合约</th><th>状态</th></tr></thead>
+<tbody>
+<tr><td><b>豆一</b></td><td><code>DCE.a</code></td><td><code>JO_336280</code></td><td><code>KQ.i@DCE.a</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>豆二</b></td><td><code>DCE.b</code></td><td><code>JO_336281</code></td><td><code>KQ.i@DCE.b</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>豆粕</b></td><td><code>DCE.m</code></td><td><code>JO_336278</code></td><td><code>KQ.i@DCE.m</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>豆油</b></td><td><code>DCE.y</code></td><td><code>JO_336279</code></td><td><code>KQ.i@DCE.y</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>棕榈油</b></td><td><code>DCE.p</code></td><td><code>JO_336282</code></td><td><code>KQ.i@DCE.p</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>玉米</b></td><td><code>DCE.c</code></td><td><code>JO_336283</code></td><td><code>KQ.i@DCE.c</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>淀粉</b></td><td><code>DCE.cs</code></td><td><code>JO_336284</code></td><td><code>KQ.i@DCE.cs</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>鸡蛋</b></td><td><code>DCE.jd</code></td><td><code>JO_336286</code></td><td><code>KQ.i@DCE.jd</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>粳米</b></td><td><code>DCE.rr</code></td><td><code>JO_336285</code></td><td><code>KQ.i@DCE.rr</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>塑料</b></td><td><code>DCE.l</code></td><td><code>JO_336290</code></td><td><code>KQ.i@DCE.l</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>PVC</b></td><td><code>DCE.v</code></td><td><code>JO_336291</code></td><td><code>KQ.i@DCE.v</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>聚丙烯</b></td><td><code>DCE.pp</code></td><td><code>JO_336293</code></td><td><code>KQ.i@DCE.pp</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>乙二醇</b></td><td><code>DCE.eg</code></td><td><code>JO_336292</code></td><td><code>KQ.i@DCE.eg</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>焦炭</b></td><td><code>DCE.j</code></td><td><code>JO_336276</code></td><td><code>KQ.i@DCE.j</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>焦煤</b></td><td><code>DCE.jm</code></td><td><code>JO_336277</code></td><td><code>KQ.i@DCE.jm</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>铁矿石</b></td><td><code>DCE.i</code></td><td><code>JO_336275</code></td><td><code>KQ.i@DCE.i</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>纤维板</b></td><td><code>DCE.fb</code></td><td><code>JO_336289</code></td><td><code>KQ.i@DCE.fb</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>胶合板</b></td><td><code>DCE.bb</code></td><td><code>JO_336288</code></td><td><code>KQ.i@DCE.bb</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>生猪</b></td><td><code>DCE.lh</code></td><td><code>JO_336287</code></td><td><code>KQ.i@DCE.lh</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>苯乙烯</b></td><td><code>DCE.eb</code></td><td><code>JO_336294</code></td><td><code>KQ.i@DCE.eb</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>液化气</b></td><td><code>DCE.pg</code></td><td><code>JO_336295</code></td><td><code>KQ.i@DCE.pg</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>纯苯</b></td><td><code>DCE.bz</code></td><td><code>JO_347013</code></td><td><code>KQ.i@DCE.bz</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>原木</b></td><td><code>DCE.lg</code></td><td><code>JO_346547</code></td><td><code>KQ.i@DCE.lg</code></td><td><span class="tag green">正常</span></td></tr>
+</tbody></table></div>
+<h4 id="map-czce">郑商所 <span class="tag">CZCE</span>
+<span class="tag blue">27 个品种</span></h4>
+<div class="tbwrap"><table>
+<thead><tr><th>品种</th><th>统一主键</th><th>曲合加权代码</th><th>天勤指数合约</th><th>状态</th></tr></thead>
+<tbody>
+<tr><td><b>白糖</b></td><td><code>CZCE.SR</code></td><td><code>JO_336314</code></td><td><code>KQ.i@CZCE.SR</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>棉花</b></td><td><code>CZCE.CF</code></td><td><code>JO_336297</code></td><td><code>KQ.i@CZCE.CF</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>棉纱</b></td><td><code>CZCE.CY</code></td><td><code>JO_336320</code></td><td><code>KQ.i@CZCE.CY</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>PTA</b></td><td><code>CZCE.TA</code></td><td><code>JO_336315</code></td><td><code>KQ.i@CZCE.TA</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>菜籽油</b></td><td><code>CZCE.OI</code></td><td><code>JO_336306</code></td><td><code>KQ.i@CZCE.OI</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>菜籽粕</b></td><td><code>CZCE.RM</code></td><td><code>JO_336310</code></td><td><code>KQ.i@CZCE.RM</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>油菜籽</b></td><td><code>CZCE.RS</code></td><td><code>JO_336309</code></td><td><code>KQ.i@CZCE.RS</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>甲醇</b></td><td><code>CZCE.MA</code></td><td><code>JO_336305</code></td><td><code>KQ.i@CZCE.MA</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>玻璃</b></td><td><code>CZCE.FG</code></td><td><code>JO_336299</code></td><td><code>KQ.i@CZCE.FG</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>纯碱</b></td><td><code>CZCE.SA</code></td><td><code>JO_336311</code></td><td><code>KQ.i@CZCE.SA</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>动力煤</b></td><td><code>CZCE.ZC</code></td><td><code>JO_336317</code></td><td><code>KQ.i@CZCE.ZC</code></td><td><span class="tag red">曲合无行情</span></td></tr>
+<tr><td><b>硅铁</b></td><td><code>CZCE.SF</code></td><td><code>JO_336312</code></td><td><code>KQ.i@CZCE.SF</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>锰硅</b></td><td><code>CZCE.SM</code></td><td><code>JO_336313</code></td><td><code>KQ.i@CZCE.SM</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>苹果</b></td><td><code>CZCE.AP</code></td><td><code>JO_336296</code></td><td><code>KQ.i@CZCE.AP</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>红枣</b></td><td><code>CZCE.CJ</code></td><td><code>JO_336298</code></td><td><code>KQ.i@CZCE.CJ</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>尿素</b></td><td><code>CZCE.UR</code></td><td><code>JO_336316</code></td><td><code>KQ.i@CZCE.UR</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>短纤</b></td><td><code>CZCE.PF</code></td><td><code>JO_336307</code></td><td><code>KQ.i@CZCE.PF</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>花生</b></td><td><code>CZCE.PK</code></td><td><code>JO_336308</code></td><td><code>KQ.i@CZCE.PK</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>烧碱</b></td><td><code>CZCE.SH</code></td><td><code>JO_336624</code></td><td><code>KQ.i@CZCE.SH</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>对二甲苯</b></td><td><code>CZCE.PX</code></td><td><code>JO_336638</code></td><td><code>KQ.i@CZCE.PX</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>强麦</b></td><td><code>CZCE.WH</code></td><td><code>JO_336304</code></td><td><code>KQ.i@CZCE.WH</code></td><td><span class="tag red">曲合无行情</span></td></tr>
+<tr><td><b>普麦</b></td><td><code>CZCE.PM</code></td><td><code>JO_336303</code></td><td><code>KQ.i@CZCE.PM</code></td><td><span class="tag red">曲合无行情</span></td></tr>
+<tr><td><b>早籼稻</b></td><td><code>CZCE.RI</code></td><td><code>JO_336301</code></td><td><code>KQ.i@CZCE.RI</code></td><td><span class="tag red">曲合无行情</span></td></tr>
+<tr><td><b>晚籼稻</b></td><td><code>CZCE.LR</code></td><td><code>JO_336302</code></td><td><code><span style="color:#b91c1c">—</span></code></td><td><span class="tag red">两源无行情</span></td></tr>
+<tr><td><b>粳稻</b></td><td><code>CZCE.JR</code></td><td><code>JO_336300</code></td><td><code>KQ.i@CZCE.JR</code></td><td><span class="tag red">曲合无行情</span></td></tr>
+<tr><td><b>丙烯</b></td><td><code>CZCE.PL</code></td><td><code>JO_347244</code></td><td><code>KQ.i@CZCE.PL</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>瓶片</b></td><td><code>CZCE.PR</code></td><td><code>JO_343081</code></td><td><code>KQ.i@CZCE.PR</code></td><td><span class="tag green">正常</span></td></tr>
+</tbody></table></div>
+<h4 id="map-gfex">广期所 <span class="tag">GFEX</span>
+<span class="tag blue">5 个品种</span></h4>
+<div class="tbwrap"><table>
+<thead><tr><th>品种</th><th>统一主键</th><th>曲合加权代码</th><th>天勤指数合约</th><th>状态</th></tr></thead>
+<tbody>
+<tr><td><b>工业硅</b></td><td><code>GFEX.si</code></td><td><code>JO_336274</code></td><td><code>KQ.i@GFEX.si</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>碳酸锂</b></td><td><code>GFEX.lc</code></td><td><code>JO_336318</code></td><td><code>KQ.i@GFEX.lc</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>多晶硅</b></td><td><code>GFEX.ps</code></td><td><code>JO_346548</code></td><td><code>KQ.i@GFEX.ps</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>钯</b></td><td><code>GFEX.pd</code></td><td><code>JO_348637</code></td><td><code>KQ.i@GFEX.pd</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>铂</b></td><td><code>GFEX.pt</code></td><td><code>JO_348623</code></td><td><code>KQ.i@GFEX.pt</code></td><td><span class="tag green">正常</span></td></tr>
+</tbody></table></div>
+<h4 id="map-cffex">中金所 <span class="tag">CFFEX</span>
+<span class="tag blue">8 个品种</span></h4>
+<div class="tbwrap"><table>
+<thead><tr><th>品种</th><th>统一主键</th><th>曲合加权代码</th><th>天勤指数合约</th><th>状态</th></tr></thead>
+<tbody>
+<tr><td><b>沪深300</b></td><td><code>CFFEX.IF</code></td><td><code>JO_338503</code></td><td><code>KQ.i@CFFEX.IF</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>中证500</b></td><td><code>CFFEX.IC</code></td><td><code>JO_338531</code></td><td><code>KQ.i@CFFEX.IC</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>中证1000</b></td><td><code>CFFEX.IM</code></td><td><code>JO_338545</code></td><td><code>KQ.i@CFFEX.IM</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>上证50</b></td><td><code>CFFEX.IH</code></td><td><code>JO_338517</code></td><td><code>KQ.i@CFFEX.IH</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>10年国债</b></td><td><code>CFFEX.T</code></td><td><code>JO_338733</code></td><td><code>KQ.i@CFFEX.T</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>5年国债</b></td><td><code>CFFEX.TF</code></td><td><code>JO_338577</code></td><td><code>KQ.i@CFFEX.TF</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>2年国债</b></td><td><code>CFFEX.TS</code></td><td><code>JO_338561</code></td><td><code>KQ.i@CFFEX.TS</code></td><td><span class="tag green">正常</span></td></tr>
+<tr><td><b>30年国债</b></td><td><code>CFFEX.TL</code></td><td><code>JO_338603</code></td><td><code>KQ.i@CFFEX.TL</code></td><td><span class="tag green">正常</span></td></tr>
+</tbody></table></div>
+
+<h2 id="coverage">6. 覆盖差异与原因</h2>
+<div class="tbwrap"><table>
+<thead><tr><th>层面</th><th class="num">曲合</th><th class="num">天勤</th><th>差异</th></tr></thead>
+<tbody>
+<tr><td>有加权合约映射</td><td class="num"><b>88</b></td><td class="num">87</td><td>曲合多 1 个（晚籼稻）</td></tr>
+<tr><td>实际能拿到行情</td><td class="num"><b>82</b></td><td class="num">87</td><td class="up">曲合少 5 个</td></tr>
+<tr><td>日K 回溯</td><td class="num">2023/08 起</td><td class="num">2016/01 起</td><td>天勤更深</td></tr>
+</tbody></table></div>
+
+<h3>曲合真正比天勤少的，只有 5 个品种</h3>
+<p>全部是<b>郑商所已停止挂牌的「僵尸品种」</b>：</p>
+<div class="tbwrap"><table>
+<thead><tr><th>品种</th><th>代码</th><th>天勤</th><th>曲合网</th></tr></thead>
+<tbody>
+<tr><td>动力煤</td><td><code>CZCE.ZC</code></td><td>last = 801.4（持仓 0、成交 0）</td><td>实时 0.0 / 分时 0 点 / 日K 空</td></tr>
+<tr><td>强麦</td><td><code>CZCE.WH</code></td><td>last = 3198.0（持仓 0、成交 0）</td><td>实时 0.0 / 分时 0 点 / 日K 空</td></tr>
+<tr><td>普麦</td><td><code>CZCE.PM</code></td><td>last = 3122.0（持仓 0、成交 0）</td><td>实时 0.0 / 分时 0 点 / 日K 空</td></tr>
+<tr><td>早籼稻</td><td><code>CZCE.RI</code></td><td>last = 2479.0（持仓 0、成交 0）</td><td>实时 0.0 / 分时 0 点 / 日K 空</td></tr>
+<tr><td>粳稻</td><td><code>CZCE.JR</code></td><td>last = 2662.0（持仓 0、成交 0）</td><td>实时 0.0 / 分时 0 点 / 日K 空</td></tr>
+</tbody></table></div>
+<p><b>原因</b>：这 5 个品种早已<b>零成交、零持仓</b>，实质停止交易。天勤仍按最后结算价维护一个报价（所以还能查到一个数字），
+曲合网（金投网）则已彻底停止对这些合约提供行情，所有接口都返回 0。</p>
+<div class="warn">另有 <b>晚籼稻 <code>CZCE.LR</code></b>：曲合有页面但同样无行情，天勤已无此产品 —— <b>两边都拿不到数据</b>。</div>
+<div class="ok">📌 因此看板在曲合源下显示 <b>82 个品种</b>、天勤源下显示 <b>87 个品种</b>，这是数据源的真实差异，不是程序缺陷。</div>
+
+<h2 id="newvarieties">7. 曲合 9 个新品种补齐</h2>
+<p>第一轮扫描只覆盖了 <code>hq-983~1108</code> 区间，漏掉了 2024 年后上市的 9 个新品种。现已全部补入 <code>品种表.py</code>：</p>
+<div class="tbwrap"><table>
+<thead><tr><th>品种</th><th>曲合加权代码</th><th>交易所</th><th class="num">日K 根数</th><th>起始日</th></tr></thead>
+<tbody>
+<tr><td>瓶片</td><td><code>JO_343081</code></td><td>郑商所</td><td class="num">509</td><td>2024/08/30</td></tr>
+<tr><td>原木</td><td><code>JO_346547</code></td><td>大商所</td><td class="num">325</td><td>2025/06/06</td></tr>
+<tr><td>多晶硅</td><td><code>JO_346548</code></td><td>广期所</td><td class="num">326</td><td>2025/06/06</td></tr>
+<tr><td>铝合金</td><td><code>JO_346083</code></td><td>上期所</td><td class="num">326</td><td>2025/06/10</td></tr>
+<tr><td>纯苯</td><td><code>JO_347013</code></td><td>大商所</td><td class="num">305</td><td>2025/07/08</td></tr>
+<tr><td>丙烯</td><td><code>JO_347244</code></td><td>郑商所</td><td class="num">295</td><td>2025/07/22</td></tr>
+<tr><td>胶版纸（双胶纸）</td><td><code>JO_347513</code></td><td>上期所</td><td class="num">259</td><td>2025/09/10</td></tr>
+<tr><td>铂</td><td><code>JO_348623</code></td><td>广期所</td><td class="num">207</td><td>2025/11/27</td></tr>
+<tr><td>钯</td><td><code>JO_348637</code></td><td>广期所</td><td class="num">206</td><td>2025/11/27</td></tr>
+</tbody></table></div>
+<p>这 9 个品种上市时间短（2024/08 ~ 2025/11），因此<b>日K 历史只有 200~500 根</b>，
+与曲合整体「日K 约 3.5 年」的特点一致；需要更长历史仍应切天勤源。</p>
+
+<h2 id="limits">8. K 线上限与全量策略</h2>
+<p>图表采用「<b>一次取全量、本地切片</b>」策略：请求时把该周期能拿到的最多根数一次取回，缓存在前端，
+之后滚轮缩放 / 拖拽平移 / 双击重置都在本地完成，<b>不再发请求</b>。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>周期</th><th class="num">曲合网</th><th class="num">天勤</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>分时</td><td class="num">约 145 点</td><td class="num">当日全部</td><td>每 3 秒重取</td></tr>
+<tr><td>5 分</td><td class="num">500</td><td class="num">4000</td><td>曲合触顶时图表提示 <code>limitHit</code></td></tr>
+<tr><td>15 分</td><td class="num">427</td><td class="num">4000</td><td></td></tr>
+<tr><td>30 分</td><td class="num">221</td><td class="num">4000</td><td></td></tr>
+<tr><td>日 K</td><td class="num">765</td><td class="num">2614</td><td>曲合 2023/08 起，天勤 2016/01 起</td></tr>
+</tbody></table></div>
+
+<h2 id="cache">9. 缓存与刷新策略</h2>
+<div class="tbwrap"><table>
+<thead><tr><th>层级</th><th>文件 / 位置</th><th>策略</th></tr></thead>
+<tbody>
+<tr><td>实时行情</td><td>内存</td><td>HTTP 前端 2 秒一档走 <code>/api/tick</code>（精简字段）</td></tr>
+<tr><td>全量排行</td><td>内存</td><td>默认 30 秒一次全量刷新（可配），重算偏离度与排名</td></tr>
+<tr><td>曲合日K</td><td><code>缓存/曲合日K缓存.json</code></td><td>约 8 MB，可随时删除，会自动重建</td></tr>
+<tr><td>天勤 K 线</td><td>内存（按源缓存）</td><td>连接期间保持订阅，避免重复拉取</td></tr>
+<tr><td>配置</td><td><code>缓存/配置.json</code></td><td>面板设置、数据源、账号、邮件参数</td></tr>
+<tr><td>阈值</td><td><code>缓存/阈值设置.json</code></td><td>各品种上阈 / 下阈 / 锁定状态</td></tr>
+</tbody></table></div>
+<div class="note">EXE 版的 <code>缓存/</code> 落在 <b>EXE 所在目录</b>（由 <code>_data_dir()</code> 决定），
+而不是 PyInstaller 一次性解包目录 —— 因此 EXE 拷到哪、配置与缓存就跟到哪，重启不丢失。</div>
+
+<h2 id="session">10. 交易时段判定</h2>
+<p>用于「邮件只在交易时段发送」的门禁。优先级从高到低，任一条成立即视为「交易中」：</p>
+<div class="tbwrap"><table>
+<thead><tr><th class="num">优先级</th><th>依据</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td class="num">1</td><td>交易所状态</td><td>曲合返回的 <code>status == 100</code> 表示交易中</td></tr>
+<tr><td class="num">2</td><td><b>行情数据新鲜度</b></td><td>距最后一笔行情 ≤ <code>mailStaleSec</code>（默认 300 秒）</td></tr>
+<tr><td class="num">3</td><td>交易所时段表</td><td>内置 <code>EXCH_SESSIONS</code> 粗表，仅在前两条都取不到时兜底</td></tr>
+</tbody></table></div>
+<p>为什么以「<b>行情数据新鲜度</b>」为主：行情时间戳天然就是最新交易时刻，闭市即冻结，因此可以<b>零维护</b>地自动适配：</p>
+<ul>
+  <li>同一交易所内不同品种的<b>夜盘差异</b>（沪铜夜盘到 01:00、螺纹钢到 23:00）</li>
+  <li>三大交易所夜盘规则的历次调整</li>
+  <li>周末、法定节假日、临时休市</li>
+</ul>
+<div class="ok">📌 实测（2026-10-13 00:00 周一）：沪铜 / 沪银 / 原油 → 开市；螺纹钢 / 铁矿石 / 纯碱 → 闭市（夜盘 23:00 已结束）；
+碳酸锂 / 多晶硅 / 沪深300 → 闭市（无夜盘）。判定结果与实际完全一致。</div>
+
+<h2 id="verify">11. 数据校验方法</h2>
+<p>本项目的数据与公式都做过可复现的对照校验：</p>
+<div class="tbwrap"><table>
+<thead><tr><th>校验项</th><th>方法</th><th>结果</th></tr></thead>
+<tbody>
+<tr><td>偏离度公式</td><td>抓取参照网页实时渲染的 87 条数据，逐条反算比对</td><td class="down">87 / 87 完全吻合</td></tr>
+<tr><td>品种覆盖</td><td>全量遍历曲合 <code>hq-1 ~ hq-1500</code>，与天勤 <code>query_quotes</code> 反推结果交叉比对</td><td class="down">差异仅 6 个，原因明确</td></tr>
+<tr><td>实时行情完整性</td><td>88 个品种批量拉取，检查字段完整性与更新时间</td><td class="down">82 个有值，6 个为僵尸品种</td></tr>
+<tr><td>邮件守护</td><td>41 项行为断言（边沿触发 / 滞回 / 门禁 / 冷却 / 配额 / 启动基线）</td><td class="down">全部通过</td></tr>
+<tr><td>守护端到端</td><td>沪铜开市触发 1 封；螺纹钢闭市静默；重启后持续超阈 10 分钟零发信</td><td class="down">符合预期</td></tr>
+<tr><td>双主题与百分比</td><td>9 张浏览器截图逐项核对（配色 / 87 张卡片全有百分比 / 折叠默认关闭）</td><td class="down">全部通过</td></tr>
+</tbody></table></div>
+
+<h2 id="disclaimer">12. 免责声明</h2>
+<div class="warn">
+本项目为<b>个人学习与研究用途</b>的开源工具，数据来自第三方公开接口。<br>
+· 数据可能存在延迟、缺失或错误，<b>不构成任何投资建议</b>，据此交易所产生的盈亏由使用者自行承担。<br>
+· 数据源接口可能随时变更，届时需相应调整 <code>曲合行情.py</code> / <code>天勤行情.py</code>。<br>
+· 请遵守各数据源的服务条款，控制请求频率，勿用于商业转售。<br>
+· 天勤 TqSdk 为独立第三方产品，本项目仅调用其公开 SDK，账号与授权请自行前往官方申请。
+</div>
+
+<hr>
+<p style="color:var(--muted);font-size:13.5px">相关文档：<a href="usage.html">详细使用说明</a> ·
+<a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">GitHub 仓库</a> ·
+<a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/tag/v1.0.0" target="_blank" rel="noopener">Release 下载</a></p>
+</main></div>
+<footer><div class="wrap">
+<div><b>加权（仓权）合约监控面板</b> · 曲合网 / 天勤 TqSdk 双数据源 · Python 标准库 + 单文件 HTML</div>
+<div class="sig">设计：公歧子　微信：gongqizi0</div>
+<div><a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">仓库</a> · <a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/tag/v1.0.0" target="_blank" rel="noopener">下载</a> · <a href="usage.html">使用说明</a> · <a href="datasource.html">数据源说明</a></div>
+</div></footer></body></html>

@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>详细使用说明 · 加权（仓权）合约监控面板</title>
+<meta name="description" content="加权合约监控面板的完整使用说明：快速开始、K线交互、阈值设定、偏离度口径、预警守护、参数表与常见问题。">
+<meta name="author" content="公歧子">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M7 22l5-7 4 4 5-9 4 5' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+:root{
+  --bg:#f4f7fc;--panel:#fff;--ink:#111827;--muted:#5b6779;--line:#e4eaf4;
+  --brand:#2563eb;--brand2:#1d4ed8;--brandsoft:#eaf1ff;
+  --up:#d92b2b;--down:#0e9f6e;--warn:#b45309;--warnbg:#fff8e6;--warnline:#f5d68a;
+  --okbg:#e9f8f1;--okline:#a5e0c6;
+  --code:#0f172a;--codeink:#e2e8f0;--shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px -12px rgba(16,24,40,.18);
+}
+body{margin:0;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;
+  font:15px/1.78 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+a{color:var(--brand);text-decoration:none}
+a:hover{text-decoration:underline}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+/* ---------- 顶栏 ---------- */
+.topbar{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(180%) blur(12px);border-bottom:1px solid var(--line)}
+.topbar .wrap{display:flex;align-items:center;gap:18px;height:58px}
+.brand{font-weight:700;font-size:15.5px;color:var(--ink);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.brand:hover{text-decoration:none}
+.brand i{font-style:normal;font-size:18px}
+.topbar nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.topbar nav a{color:var(--muted);font-size:14px;padding:6px 11px;border-radius:8px;white-space:nowrap}
+.topbar nav a:hover{background:var(--brandsoft);color:var(--brand2);text-decoration:none}
+.topbar nav a.on{background:var(--brandsoft);color:var(--brand2);font-weight:600}
+/* ---------- 通用 ---------- */
+h1,h2,h3,h4{line-height:1.35;margin:0 0 .5em}
+h2{font-size:22px;margin-top:2.1em;padding-top:.5em;border-top:1px solid var(--line)}
+h2:first-child{border-top:none;margin-top:0;padding-top:0}
+h3{font-size:16.5px;margin-top:1.7em}
+h4{font-size:15px;margin-top:1.3em;color:var(--muted)}
+p{margin:.6em 0}
+ul,ol{margin:.6em 0;padding-left:1.5em}
+li{margin:.28em 0}
+code{background:#eef2f9;border:1px solid var(--line);border-radius:5px;padding:1px 6px;
+  font:13px/1.5 "Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;color:#1f3a8a}
+pre{background:var(--code);color:var(--codeink);border-radius:12px;padding:16px 18px;overflow:auto;margin:14px 0;
+  font:13px/1.7 "Cascadia Mono",Consolas,"SF Mono",Menlo,monospace}
+pre code{background:none;border:none;color:inherit;padding:0;font-size:inherit}
+blockquote{margin:14px 0;padding:12px 16px;background:var(--panel);border-left:3px solid var(--brand);
+  border-radius:0 10px 10px 0;color:var(--muted);box-shadow:var(--shadow)}
+hr{border:none;border-top:1px solid var(--line);margin:2em 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.note,.warn,.ok{border-radius:12px;padding:13px 16px;margin:14px 0;font-size:14px}
+.note{background:var(--brandsoft);border:1px solid #c9dcff}
+.warn{background:var(--warnbg);border:1px solid var(--warnline)}
+.ok{background:var(--okbg);border:1px solid var(--okline)}
+.note b,.warn b,.ok b{font-weight:700}
+/* ---------- 表格 ---------- */
+.tbwrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:13.5px;min-width:520px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{background:#f7f9fd;font-weight:600;color:#334155;white-space:nowrap;position:sticky;top:0}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafcff}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.up{color:var(--up);font-weight:600}
+.down{color:var(--down);font-weight:600}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:999px;background:#eef2f9;
+  border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.red{background:#fdeaea;border-color:#f6c9c9;color:#b91c1c}
+.tag.green{background:#e9f8f1;border-color:#a5e0c6;color:#047857}
+.tag.blue{background:var(--brandsoft);border-color:#c9dcff;color:var(--brand2)}
+/* ---------- 首页 ---------- */
+.hero{padding:54px 0 40px;background:linear-gradient(170deg,#eef4ff 0%,#f4f7fc 62%)}
+.hero h1{font-size:34px;letter-spacing:-.4px;margin-bottom:14px}
+.hero .lead{font-size:16.5px;color:var(--muted);max-width:760px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:20px 0 26px}
+.badges span{font-size:12.5px;padding:4px 11px;border-radius:999px;background:#fff;border:1px solid var(--line);
+  color:#334155;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+.cta{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:11px;font-size:14.5px;
+  font-weight:600;border:1px solid transparent;transition:.16s}
+.btn:hover{text-decoration:none;transform:translateY(-1px)}
+.btn.p{background:var(--brand);color:#fff;box-shadow:0 6px 16px -6px rgba(37,99,235,.6)}
+.btn.p:hover{background:var(--brand2)}
+.btn.s{background:#fff;color:#334155;border-color:var(--line)}
+.btn.s:hover{border-color:#c9dcff;color:var(--brand2)}
+.btn.g{background:#111827;color:#fff}
+.btn small{font-weight:400;opacity:.8}
+.sect{padding:44px 0}
+.sect>h2{border:none;margin-top:0;padding-top:0;font-size:24px;text-align:center}
+.sect>.sub{text-align:center;color:var(--muted);margin:-.2em 0 30px}
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g2{grid-template-columns:repeat(2,1fr)}
+.feat{padding:18px 18px 16px;border-radius:14px}
+.feat .ic{font-size:20px;line-height:1}
+.feat h3{font-size:15px;margin:9px 0 5px}
+.feat p{margin:0;font-size:13.5px;color:var(--muted)}
+.doc-card{padding:22px;border-radius:14px;display:block;color:inherit}
+.doc-card:hover{text-decoration:none;border-color:#c9dcff;transform:translateY(-2px);transition:.16s}
+.doc-card h3{margin:0 0 6px;font-size:17px;color:var(--brand2)}
+.doc-card p{margin:0 0 10px;font-size:13.5px;color:var(--muted)}
+.doc-card ul{margin:0;padding-left:1.2em;font-size:13px;color:var(--muted)}
+.shot{border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow)}
+.shot img{display:block;width:100%;height:auto}
+.shot figcaption{font-size:12.5px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--line);text-align:center}
+/* ---------- 文档页 ---------- */
+.doc{display:grid;grid-template-columns:230px minmax(0,1fr);gap:36px;padding:32px 0 70px;align-items:start}
+.toc{position:sticky;top:78px;font-size:13.5px;border-left:2px solid var(--line);padding:2px 0 2px 14px;max-height:calc(100vh - 110px);overflow:auto}
+.toc b{display:block;color:#334155;margin-bottom:8px;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.toc a{display:block;color:var(--muted);padding:3.5px 0;line-height:1.5}
+.toc a:hover{color:var(--brand2);text-decoration:none}
+.toc a.h3{padding-left:12px;font-size:12.8px;color:#8a94a6}
+.content{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:16px;
+  padding:34px 38px 42px;box-shadow:var(--shadow)}
+.content>h1{font-size:27px;margin-bottom:6px}
+.content>.meta{color:var(--muted);font-size:13px;margin-bottom:6px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:16px 0}
+.kv div{background:#f8fafd;border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+.kv b{display:block;font-size:20px;color:var(--brand2);font-variant-numeric:tabular-nums}
+.kv span{font-size:12.5px;color:var(--muted)}
+/* ---------- 页脚 ---------- */
+footer{border-top:1px solid var(--line);background:#fff;padding:28px 0 34px;color:var(--muted);font-size:13px}
+footer .wrap{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+footer b{color:#334155}
+.sig{font-weight:600}
+@media(max-width:960px){
+  .g3,.g4{grid-template-columns:repeat(2,1fr)}
+  .doc{grid-template-columns:1fr;gap:18px}
+  .toc{position:static;border-left:none;border-top:1px solid var(--line);padding:12px 0 0;max-height:none}
+  .toc a{display:inline-block;margin-right:12px}
+  .content{padding:24px 20px 30px}
+  .hero h1{font-size:26px}
+}
+@media(max-width:620px){.g3,.g4,.g2{grid-template-columns:1fr}}
+</style>
+</head>
+<body><header class="topbar"><div class="wrap">
+<a class="brand" href="index.html"><i>📈</i>加权（仓权）合约监控面板</a>
+<nav>
+<a href="index.html">首页</a>
+<a href="usage.html" class="on">使用说明</a>
+<a href="datasource.html">数据源说明</a>
+<a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">GitHub ↗</a>
+</nav></div></header>
+<div class="wrap doc">
+<aside class="toc"><b>目录</b><a href="#quick">1. 快速开始</a><a href="#ui">2. 界面总览</a><a href="#kline">3. K 线图交互</a><a href="#kline-zoom" class=h3>缩放 / 平移 / 重置</a><a href="#kline-cursor" class=h3>十字光标与均线开关</a><a href="#kline-limit" class=h3>数据上限</a><a href="#source">4. 数据源切换</a><a href="#threshold">5. 阈值基准（上阈 / 下阈）</a><a href="#percent">6. 偏离度百分比</a><a href="#alert">7. 预警与防轰炸守护</a><a href="#settings">8. 设置面板全参数</a><a href="#theme">9. 显示模式与页脚</a><a href="#mail">10. 邮件配置示例</a><a href="#faq">11. 常见问题</a><a href="#repack">12. 重新打包 EXE</a></aside>
+<main class="content">
+<h1>详细使用说明</h1>
+<p class="meta">适用版本 v1.0.0 · 更新日期 2026-10-13 · 设计：公歧子　微信：gongqizi0</p>
+<div class="note">本文档与仓库内 <code>说明.md</code> 内容一致，HTML 版便于在线浏览与分享。
+仓库地址：<a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">https://github.com/chenzhuanxin/futures-weighted-panel</a></div>
+
+<h2 id="quick">1. 快速开始</h2>
+<h3>方式 A：单文件 EXE（推荐给最终用户）</h3>
+<ol>
+  <li>从 <a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/tag/v1.0.0" target="_blank" rel="noopener">Releases</a> 下载
+      <code>futures-weighted-panel-v1.0.0-win64.exe</code>（约 94 MB）。</li>
+  <li>双击运行。单文件 EXE 需先自解压，<b>约 5~10 秒后</b>才弹出黑色控制台窗口，属正常现象。</li>
+  <li>启动后自动打开浏览器，默认地址 <code>http://127.0.0.1:8689</code>；
+      端口被占用会自动改用 8690、8691…，<b>以控制台打印的地址为准</b>。</li>
+  <li>首次启动需 20~60 秒预热（拉取全部品种历史日K），预热完刷新即可。</li>
+  <li>关闭：直接关掉控制台窗口，或窗口内按 <code>Ctrl+C</code>。</li>
+</ol>
+<div class="ok">✅ EXE 默认数据源为<b>曲合网</b>（免账号、免密钥，82 个品种有行情，日K 约 3.5 年）—— 双击就有数据。</div>
+
+<h3>方式 B：源码运行</h3>
+<p>下载 <a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/download/v1.0.0/futures-weighted-panel-v1.0.0-src.zip" target="_blank" rel="noopener">源码包 ZIP</a> 解压，然后：</p>
+<pre><code># Windows：直接双击
+启动看板.bat
+
+# 或命令行
+python 服务端.py                 # 默认 8689 端口，自动打开浏览器
+python 服务端.py --port 8888     # 指定端口
+python 服务端.py --no-browser    # 不自动开浏览器</code></pre>
+<div class="warn">⚠️ 源码运行只需 <b>Python 3.9+ 标准库</b>；仅当使用天勤数据源时才需要
+<code>pip install tqsdk</code>。</div>
+
+<h2 id="ui">2. 界面总览</h2>
+<figure class="shot" style="margin:16px 0"><img src="images/main-light.png" alt="主界面"><figcaption>主界面（浅色默认主题）</figcaption></figure>
+<div class="tbwrap"><table>
+<thead><tr><th>区域</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>顶栏左侧</td><td>数据源下拉（曲合网 / 天勤）、<b>邮件守护</b>状态位（仅交易时段 / 全天、今日已发、排队数）</td></tr>
+<tr><td>顶栏右侧</td><td><code>🌙 深蓝模式</code> / <code>☀️ 浅色模式</code> 切换、<code>⚙️ 设置</code>、手动刷新</td></tr>
+<tr><td>左栏「历史高于均值」</td><td>按偏离度<b>从高到低</b>排序；可一键把<b>下阈</b>设为所选周期的动态均线</td></tr>
+<tr><td>右栏「历史低于均值」</td><td>按偏离度<b>从高到低</b>排序；可一键把<b>上阈</b>设为所选周期的动态均线</td></tr>
+<tr><td>卡片条</td><td><code>[进度条] [偏离度%]</code>，偏离度 &gt; 门槛时百分比加粗高亮并解锁一键设阈</td></tr>
+<tr><td>卡片标签</td><td><code>⚠ 已触发</code>（价格在阈值外）；闭市且已设阈时追加 <code>🌙 休市·静默</code></td></tr>
+<tr><td>底部折叠区</td><td><b>数据源说明</b>（默认折叠）与设计署名</td></tr>
+</tbody></table></div>
+
+<h2 id="kline">3. K 线图交互</h2>
+<p>每张卡片右下角 <b>📊 查看行情</b> → 弹出图表，五个周期页签：<b>分时 / 5分 / 15分 / 30分 / 日K</b>。</p>
+<figure class="shot" style="margin:16px 0"><img src="images/kline.png" alt="日K六均线"><figcaption>日K · 6 条均线 + 上下阈虚线</figcaption></figure>
+
+<h3 id="kline-zoom">缩放 / 平移 / 重置</h3>
+<div class="tbwrap"><table>
+<thead><tr><th>操作</th><th>方式</th></tr></thead>
+<tbody>
+<tr><td>缩放</td><td>鼠标滚轮；或工具条 <code>＋</code> / <code>−</code></td></tr>
+<tr><td>平移</td><td>按住图表拖动；或工具条 <code>全览</code> / <code>最新</code></td></tr>
+<tr><td>重置</td><td>双击图表</td></tr>
+</tbody></table></div>
+<p><b>全量数据</b>：图表一次性取回该周期全部 K 线后再在本地切片缩放，因此缩放/平移到任意位置都<b>不需要重新请求</b>。
+实测视口可从 220 根缩到 55 根，曲合日K 765 根、天勤日K 2614 根均可完整浏览。</p>
+
+<h3 id="kline-cursor">十字光标与均线开关</h3>
+<ul>
+  <li>十字光标悬停 → 显示<b>开 / 高 / 低 / 收 / 涨跌幅 / 成交量</b>（分时图另显示均价）。</li>
+  <li>图例上的 <code>MA5</code> <code>MA8</code> <code>MA10</code> <code>MA20</code> <code>MA30</code> <code>MA50</code> 色块<b>点击即显隐</b>。</li>
+  <li>卡片按钮上会直接显示本次基准值，如 <code>15分·MA20=110425.8</code>。</li>
+  <li>设定阈值后，图上会画出<b>上阈黄虚线</b> / <b>下阈青虚线</b>及数值标签。</li>
+</ul>
+
+<h3 id="kline-limit">数据上限</h3>
+<div class="tbwrap"><table>
+<thead><tr><th>周期</th><th class="num">曲合网</th><th class="num">天勤</th><th>备注</th></tr></thead>
+<tbody>
+<tr><td>分时</td><td class="num">当日全部（约 145 点）</td><td class="num">当日全部</td><td>—</td></tr>
+<tr><td>5 分</td><td class="num">500 根</td><td class="num">4000 根</td><td>曲合为接口硬上限，图表会提示 <code>limitHit</code></td></tr>
+<tr><td>15 分</td><td class="num">427 根</td><td class="num">4000 根</td><td>—</td></tr>
+<tr><td>30 分</td><td class="num">221 根</td><td class="num">4000 根</td><td>—</td></tr>
+<tr><td>日 K</td><td class="num">765 根</td><td class="num">2614 根</td><td>曲合自 2023/08 起，天勤自 2016/01 起</td></tr>
+</tbody></table></div>
+<div class="warn">⚠️ 曲合网分钟 K 单次硬上限 <b>500 根</b>（<code>pageSize</code> 参数无效）。需要更长分钟历史请切到天勤源。</div>
+
+<h2 id="source">4. 数据源切换</h2>
+<p>在<b>顶栏下拉</b>或 <b>⚙️ 设置 → 数据源</b> 中切换即可。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>数据源</th><th>账号</th><th>加权口径</th><th>优点</th><th>缺点</th></tr></thead>
+<tbody>
+<tr><td><b>曲合网</b>（金投网）</td><td>免账号</td><td><code>JO_xxxxxx</code> 加权合约</td><td>秒开、无会话问题</td><td>日K 仅约 3.5 年；分钟K 单次上限 500 根</td></tr>
+<tr><td><b>天勤</b> TqSdk</td><td>需快期账号</td><td><code>KQ.i@交易所.品种</code> 指数合约</td><td>日K 10 年+、分钟K 4000 根、推送式</td><td>需账号、首连较慢</td></tr>
+</tbody></table></div>
+<p>切换耗时实测：切曲合约 <b>1 秒</b>（缓存命中）；切天勤约 <b>18~35 秒</b>（首连）。两者口径一致，切换后历史 H/L/M 自动按新源重算。</p>
+<figure class="shot" style="margin:16px 0"><img src="images/settings-source.png" alt="数据源设置"><figcaption>设置 · 数据源（填写天勤快期账号 / 密码）</figcaption></figure>
+
+<h2 id="threshold">5. 阈值基准（上阈 / 下阈）</h2>
+<p><b>一键设阈 = 所选周期 K 线、最近 N 根的动态均值</b>，其中最后一根用当前实时价替代，因此<b>每个 tick 都在变</b>。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>位置</th><th>操作</th><th>含义</th></tr></thead>
+<tbody>
+<tr><td>左栏「历史高于均值」</td><td>一键设<b>下阈</b></td><td>价格从上方跌破该均值 → 触发下阈预警</td></tr>
+<tr><td>右栏「历史低于均值」</td><td>一键设<b>上阈</b></td><td>价格从下方升破该均值 → 触发上阈预警</td></tr>
+</tbody></table></div>
+<ul>
+  <li>可选周期：<b>5 分 / 15 分 / 30 分 / 日K</b>；可选均线参数：<b>MA5 / 8 / 10 / 20 / 30 / 50</b></li>
+  <li>偏离度 &gt; 门槛（默认 <b>70%</b>）按钮才可点，与参照网页逻辑完全一致（<code>pct &gt; 70</code>）</li>
+  <li>实测：15分K·MA20 → 110425.8；5分K·MA8 → 110480.125；日K·MA5 → 109933.6</li>
+</ul>
+<figure class="shot" style="margin:16px 0"><img src="images/settings-threshold.png" alt="阈值基准设置"><figcaption>设置 · 阈值基准（计算周期 + 均线参数 + 一键设阈门槛）</figcaption></figure>
+
+<h2 id="percent">6. 偏离度百分比</h2>
+<p>卡片结构（与参照网页一致）：</p>
+<pre><code>[进度条  flex:1]  [92.05%]
+ bar-container     percent-label</code></pre>
+<p>计算口径以「历史均价 M」为 0 基准，<b>高低两侧各自归一化到 0~100</b>：</p>
+<div class="tbwrap"><table>
+<thead><tr><th>侧</th><th>条件</th><th>公式</th><th>满格含义</th></tr></thead>
+<tbody>
+<tr><td>高侧</td><td>现价 ≥ M</td><td><code>(现价 − M) ÷ (H − M) × 100%</code></td><td>触及历史最高 H = 100%</td></tr>
+<tr><td>低侧</td><td>现价 &lt; M</td><td><code>(现价 − M) ÷ (L − M) × 100%</code></td><td>触及历史最低 L = 100%</td></tr>
+</tbody></table></div>
+<ul>
+  <li>两侧数值都表示「离开均价、走完该侧全程的比例」，<b>越大越极端</b>；两栏均按降序排列</li>
+  <li>其中 <b>H = max(high)</b>、<b>L = min(low)</b>、<b>M = mean(close)</b>，均基于该数据源全部可获取的历史日K</li>
+  <li>价格突破历史极值时会 &gt; 100%（数值不截断，仅进度条打满 <code>min(100, pct)</code>）</li>
+  <li>偏离度 &gt; 门槛（默认 70%）→ 右侧百分比加粗高亮 + 解锁「一键设阈」</li>
+  <li>百分比文字粗体 17px、最小宽度 74px 右对齐，随 <code>/api/tick</code> 实时<b>就地重算</b>（不重绘 DOM）</li>
+</ul>
+<div class="ok">✅ 口径已与参照网页逐条比对：抓取其实时渲染的 <b>87 条</b>数据反算，<b>87/87 完全吻合</b>。</div>
+<div class="warn">旧版公式（<code>(现价 − L) ÷ (H − L)</code> 的全局位置）已废弃 —— 与参照网页对照，平均偏差达 <b>31 个百分点</b>。
+如需全局位置，接口仍返回 <code>position</code> 字段备用。</div>
+
+<h2 id="alert">7. 预警与防轰炸守护</h2>
+<ul>
+  <li>触发条件：实时价<b>上穿</b>上阈 或 <b>下穿</b>下阈</li>
+  <li>表现：卡片红色高亮 + 提示音 + <b>邮件</b>（卡片式 HTML，含阈值基准说明）</li>
+</ul>
+
+<h3>7.1 为什么需要守护</h3>
+<p>早期版本是「每轮刷新只要价格在阈值外就发信」，配合默认 120 秒冷却，会产生三类骚扰：</p>
+<div class="tbwrap"><table>
+<thead><tr><th>场景</th><th>旧行为</th><th>后果</th></tr></thead>
+<tbody>
+<tr><td>价格突破后<b>长期停在阈值外</b></td><td>每 120 秒重复发一封</td><td class="up">一天最多 720 封</td></tr>
+<tr><td><b>收盘后 / 周末 / 假期</b></td><td>收盘价仍在阈值外，照发不误</td><td class="up">整夜 + 整个周末连续轰炸</td></tr>
+<tr><td>多阈值 + 行情普涨/普跌</td><td>几十个品种各自计时</td><td>邮件互相叠加</td></tr>
+</tbody></table></div>
+
+<h3>7.2 现在的五层防护</h3>
+<div class="tbwrap"><table>
+<thead><tr><th>层</th><th>机制</th><th>作用</th></tr></thead>
+<tbody>
+<tr><td>① 边沿触发</td><td>只有「从阈内穿到阈外」的<b>那一刻</b>才算一次事件；持续停在阈值外<b>不重发</b></td><td>一次突破只发一封</td></tr>
+<tr><td>② 滞回复位</td><td>必须回落超过「上阈 ×(1−幅度)」才复位（默认 0.3%），之后再次突破才算新事件</td><td>滤掉阈值边缘的来回抖动</td></tr>
+<tr><td>③ 交易时段门禁</td><td>闭市期间完全不发信；且闭市期间<b>不置位触发态</b>，开盘首轮若仍在阈值外会<b>补发一封</b></td><td>解决整夜 / 周末轰炸</td></tr>
+<tr><td>④ 同品种冷却</td><td>同品种同方向默认 600 秒内最多一封</td><td>兜底限频</td></tr>
+<tr><td>⑤ 全局配额</td><td>每小时 ≤ 6 封、每天 ≤ 30 封；超出转<b>排队</b>等待，不丢弃</td><td>上限兜底</td></tr>
+</tbody></table></div>
+<p>另有 <b>⑥ 启动基线</b>：重启服务端时，首轮只登记「当前谁在阈值外」，<b>默认不补发</b>，避免「一开就炸」。</p>
+
+<h3>7.3 交易时段怎么判断（双源通用、零维护）</h3>
+<p>优先级从高到低，任一条成立即视为「交易中」：</p>
+<ol>
+  <li><b>交易所状态</b>：曲合返回的 <code>status == 100</code></li>
+  <li><b>行情数据新鲜度</b>（最可靠）：距最后一笔行情 ≤ 300 秒（可配）—— 行情时间戳天然就是最新交易时刻，闭市即冻结，
+      因此自动适配：同一交易所内不同品种的夜盘差异（沪铜到 01:00 / 螺纹钢到 23:00）、夜盘规则历次调整、周末与法定节假日</li>
+  <li><b>交易所时段表</b>：仅在前两条都取不到时兜底</li>
+</ol>
+<div class="ok">📌 实测（2026-10-13 00:00 周一）：沪铜 / 沪银 / 原油 → <b>开市</b>（夜盘进行中）；螺纹钢 / 铁矿石 / 纯碱 → <b>闭市</b>（夜盘 23:00 已结束）；碳酸锂 / 多晶硅 / 沪深300 → <b>闭市</b>（无夜盘）。</div>
+
+<h3>7.4 面板上怎么看</h3>
+<ul>
+  <li>顶栏 <b>邮件守护</b> 状态位：显示「仅交易时段 / 全天」、今日已发数、排队数</li>
+  <li>卡片标签：<code>⚠ 已触发</code>；闭市且已设阈时追加 <code>🌙 休市·静默</code>（悬停看具体原因）</li>
+  <li><b>⚙️ 设置 → 预警 · 防轰炸守护</b> 底部有实时统计：闭市静默 / 冷却抑制 / 配额抑制 / 队列丢弃次数，
+      以及「最近为什么没发信」和「最近发信记录」</li>
+</ul>
+<figure class="shot" style="margin:16px 0"><img src="images/guard-hud.png" alt="邮件守护 HUD"><figcaption>顶栏「邮件守护」状态位</figcaption></figure>
+<figure class="shot" style="margin:16px 0"><img src="images/settings-guard.png" alt="防轰炸守护设置"><figcaption>设置 · 预警防轰炸守护（9 个参数 + 实时抑制统计）</figcaption></figure>
+<div class="ok">✅ 实测对比：沪铜（开市）上阈 110000、现价 110429 → 发出 <b>1 封</b>；螺纹钢（闭市）上阈 3000、现价 3083 → <b>静默不发</b>。
+服务端重启后沪铜持续停在阈值外 10 分钟，<b>一封都没发</b>（旧版会发 5 封）。</div>
+
+<h2 id="settings">8. 设置面板全参数</h2>
+<p>全部落盘到 <code>缓存/配置.json</code>。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>分区</th><th>可配置项</th></tr></thead>
+<tbody>
+<tr><td>数据源</td><td>当前源、天勤账号 / 密码、切换并连接</td></tr>
+<tr><td>显示模式</td><td><code>theme</code> = <code>light</code>（白色背景，默认）/ <code>dark</code>（深蓝背景）</td></tr>
+<tr><td>刷新频率</td><td>实时刷新秒（默认 2）、全量刷新秒（默认 30）</td></tr>
+<tr><td>阈值基准</td><td>计算周期（m5 / m15 / m30 / d）、均线参数（5/8/10/20/30/50）、一键设阈门槛</td></tr>
+<tr><td>K 线</td><td>默认展示的均线（6 选多）</td></tr>
+<tr><td><b>预警 · 防轰炸守护</b></td><td>邮件冷却秒、声音开关、仅交易时段发信、仅新突破发一次、滞回复位幅度 %、行情陈旧阈值秒、每小时上限 / 每天上限、启动时补发存量触发</td></tr>
+<tr><td>邮件</td><td>启用开关、SMTP 主机、端口 / SSL、发件账号、授权码、发件人名称、收件人、抄送</td></tr>
+</tbody></table></div>
+
+<h3>守护相关配置项一览</h3>
+<div class="tbwrap"><table>
+<thead><tr><th>键</th><th>默认</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>mailTradingOnly</code></td><td><code>true</code></td><td>闭市不发信</td></tr>
+<tr><td><code>mailEdgeOnly</code></td><td><code>true</code></td><td>仅边沿触发发信</td></tr>
+<tr><td><code>mailOnStart</code></td><td><code>false</code></td><td>启动首轮是否补发存量触发</td></tr>
+<tr><td><code>mailCooldown</code></td><td><code>600</code></td><td>同品种同方向冷却（秒）</td></tr>
+<tr><td><code>mailReleasePct</code></td><td><code>0.3</code></td><td>滞回复位幅度（%）</td></tr>
+<tr><td><code>mailStaleSec</code></td><td><code>300</code></td><td>行情超时视为闭市（秒）</td></tr>
+<tr><td><code>mailMaxPerHour</code></td><td><code>6</code></td><td>每小时全局上限（0 = 禁止发信）</td></tr>
+<tr><td><code>mailMaxPerDay</code></td><td><code>30</code></td><td>每天全局上限</td></tr>
+<tr><td><code>mailQueueTTL</code></td><td><code>1800</code></td><td>被限流触发的排队有效期（秒）</td></tr>
+</tbody></table></div>
+<div class="note">若你希望「任何时段都发」：关闭「仅交易时段发信」即可恢复全天监控（但边沿 + 冷却 + 配额仍生效）。</div>
+
+<h2 id="theme">9. 显示模式与页脚</h2>
+<div class="tbwrap"><table>
+<thead><tr><th>项</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>默认</td><td><b>浅色 / 白色背景</b>（<code>data-theme="light"</code>），首次打开即是</td></tr>
+<tr><td>切换</td><td>顶栏「🌙 深蓝模式」⇄「☀️ 浅色模式」一键互切</td></tr>
+<tr><td>落盘</td><td>写入 <code>缓存/配置.json</code> 的 <code>panel.theme</code>，同时写 <code>localStorage["qb_theme"]</code>（<code>&lt;head&gt;</code> 内联脚本在首屏渲染前应用，无闪烁）</td></tr>
+<tr><td>Canvas 同步</td><td>图表配色有 <code>C_LIGHT</code> / <code>C_DARK</code> 两套（K线涨跌、均线、网格、坐标轴、阈值虚线、十字光标、成交量、渐变填充、空状态文字），切主题即重绘</td></tr>
+<tr><td>底部数据源说明</td><td>原生 <code>&lt;details&gt;</code> 折叠面板，<b>默认折叠</b>；展开可见两源接口、覆盖数量、K线上限、口径一致性、公式、无数据品种原因</td></tr>
+<tr><td>设计署名</td><td><code>设计：公歧子　微信：gongqizi0</code></td></tr>
+</tbody></table></div>
+<figure class="shot" style="margin:16px 0"><img src="images/srcnote.png" alt="数据源说明展开"><figcaption>底部「数据源说明」展开状态</figcaption></figure>
+
+<h2 id="mail">10. 邮件配置示例</h2>
+<p>以 126 邮箱发到 QQ 邮箱为例（<code>⚙️ 设置 → 邮件</code>）：</p>
+<div class="tbwrap"><table>
+<thead><tr><th>字段</th><th>示例值</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>SMTP 主机</td><td><code>smtp.126.com</code></td><td>按邮箱服务商填写</td></tr>
+<tr><td>端口</td><td><code>465</code></td><td>SSL 勾选时为 465，非 SSL 常用 587</td></tr>
+<tr><td>SSL</td><td>勾选</td><td>—</td></tr>
+<tr><td>发件账号</td><td><code>yourname@126.com</code></td><td>完整邮箱地址</td></tr>
+<tr><td>授权码</td><td><code>********</code></td><td><b>不是登录密码</b>，需在邮箱设置里单独开启 SMTP 并生成</td></tr>
+<tr><td>发件人名称</td><td><code>加权合约监控</code></td><td>邮件里显示的名称</td></tr>
+<tr><td>收件人</td><td><code>someone@qq.com</code></td><td>可多个</td></tr>
+</tbody></table></div>
+<div class="warn">🔒 <b>账号安全</b>：所有账号与授权码只保存在本机 <code>缓存/配置.json</code>，
+<b>不会</b>上传到任何服务器，也<b>不会</b>被提交进本仓库（仓库已用 <code>.gitignore</code> 排除 <code>缓存/</code>）。</div>
+
+<h2 id="faq">11. 常见问题</h2>
+<div class="tbwrap"><table>
+<thead><tr><th>现象</th><th>原因与解决</th></tr></thead>
+<tbody>
+<tr><td>浏览器没自动打开</td><td>手动访问控制台里打印的地址（<code>http://127.0.0.1:8689</code>）</td></tr>
+<tr><td>面板一直显示「预热中」</td><td>天勤源首次连接较慢（30~60 秒），再等一会儿并刷新</td></tr>
+<tr><td>天勤提示「tqsdk 不可用」</td><td>源码运行需 <code>pip install tqsdk</code>；或设置面板里没填账号。只想要数据就切回「曲合网」</td></tr>
+<tr><td>曲合某品种无数据</td><td>该品种为已停止挂牌的「僵尸品种」（零成交零持仓），曲合侧无行情 —— 详见
+    <a href="datasource.html#coverage">数据源说明 · 覆盖差异</a></td></tr>
+<tr><td>分钟 K 只有 500 根</td><td>曲合网接口硬上限。需要更长历史请切天勤源</td></tr>
+<tr><td>杀毒软件报毒</td><td>PyInstaller 单文件 EXE 的常见误报，加入信任即可（源码在同仓库，可自行执行 <code>打包exe.py</code> 核对重建）</td></tr>
+<tr><td>EXE 双击后要等很久</td><td>单文件 EXE 需先自解压，约 5~10 秒出现控制台窗口属正常</td></tr>
+<tr><td>端口 8689 被占用</td><td>自动避让到 8690、8691…，以控制台打印的地址为准</td></tr>
+<tr><td>配置放在哪</td><td>EXE 版在 <b>EXE 同级的 <code>缓存\</code></b>；源码版在项目 <code>缓存\</code>。EXE 拷到哪配置就跟到哪</td></tr>
+</tbody></table></div>
+
+<h2 id="repack">12. 重新打包 EXE</h2>
+<pre><code>C:/Python314/python.exe 打包exe.py      :: 产物 → 发布\加权合约监控面板.exe（约 94 MB）</code></pre>
+<p>用 PyInstaller 6.22.3 + Python 3.14 打包，<code>--onefile --console</code>，内置 tqsdk / pandas / numpy / scipy 全量依赖。</p>
+<div class="tbwrap"><table>
+<thead><tr><th>关键处理</th><th>做法</th></tr></thead>
+<tbody>
+<tr><td><b>动态导入的中文模块</b></td><td><code>服务端.py</code> 用 <code>importlib.import_module("品种表")</code>，静态分析扫不到 → 必须
+<code>--hidden-import 品种表 数据源 邮件预警 天勤行情 曲合行情</code></td></tr>
+<tr><td><b>只读资源 vs 可写数据</b></td><td><code>看板.html</code> 走 <code>--add-data</code> 打进 EXE（运行时在 <code>sys._MEIPASS</code>）；
+配置与缓存改由 <code>_data_dir()</code> 决定 = <b>EXE 所在目录</b></td></tr>
+<tr><td><b><code>--add-data</code> 必须绝对路径</b></td><td>同时用了 <code>--specpath build</code> 时，相对路径会以 spec 目录为基准 → <code>Unable to find 看板.html</code></td></tr>
+<tr><td><b>不能排除 <code>pydoc</code> / <code>scipy</code></b></td><td>实测 <code>import tqsdk</code> 会连带导入二者；排除后 <code>from tqsdk import TqApi</code> 抛异常并被误报成「未安装 tqsdk」</td></tr>
+<tr><td><b>账号不进 EXE</b></td><td><code>缓存/</code> 不打进包，EXE 本体零敏感信息，可安全分发</td></tr>
+</tbody></table></div>
+<div class="ok">✅ 打包后实测：曲合源 82 品种正常；天勤源登录成功、174 个合约订阅、87 品种数据齐全。</div>
+
+<hr>
+<p style="color:var(--muted);font-size:13.5px">相关文档：<a href="datasource.html">详细数据源说明</a> ·
+<a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">GitHub 仓库</a> ·
+<a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/tag/v1.0.0" target="_blank" rel="noopener">Release 下载</a></p>
+</main></div>
+<footer><div class="wrap">
+<div><b>加权（仓权）合约监控面板</b> · 曲合网 / 天勤 TqSdk 双数据源 · Python 标准库 + 单文件 HTML</div>
+<div class="sig">设计：公歧子　微信：gongqizi0</div>
+<div><a href="https://github.com/chenzhuanxin/futures-weighted-panel" target="_blank" rel="noopener">仓库</a> · <a href="https://github.com/chenzhuanxin/futures-weighted-panel/releases/tag/v1.0.0" target="_blank" rel="noopener">下载</a> · <a href="usage.html">使用说明</a> · <a href="datasource.html">数据源说明</a></div>
+</div></footer></body></html>

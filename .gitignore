@@ -1,0 +1,23 @@
+# ==== 敏感与本地数据：绝不入仓 ====
+缓存/
+发布/缓存/
+*.log
+
+# ==== Python 运行产物 ====
+__pycache__/
+*.pyc
+*.pyo
+
+# ==== 打包中间产物（可由 打包exe.py 重建）====
+build/
+dist/
+*.spec
+
+# ==== 打包产物：通过 GitHub Release 分发，不进仓库 ====
+发布/*.exe
+
+# ==== 临时文件 ====
+._*
+_*.py
+Thumbs.db
+.DS_Store

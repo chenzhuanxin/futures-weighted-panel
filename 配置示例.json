@@ -1,0 +1,37 @@
+{
+  "panel": {
+    "source": "quhe",
+    "theme": "light",
+    "tickSec": 2,
+    "refreshSec": 30,
+    "thrKind": "m30",
+    "thrMA": 20,
+    "chartMA": [5, 8, 10, 20, 30, 50],
+    "mailOn": false,
+    "soundOn": true,
+    "minPercent": 70,
+    "mailTradingOnly": true,
+    "mailEdgeOnly": true,
+    "mailOnStart": false,
+    "mailCooldown": 600,
+    "mailReleasePct": 0.3,
+    "mailStaleSec": 300,
+    "mailMaxPerHour": 6,
+    "mailMaxPerDay": 30,
+    "mailQueueTTL": 1800
+  },
+  "mail": {
+    "host": "smtp.126.com",
+    "port": 465,
+    "ssl": true,
+    "user": "",
+    "authcode": "",
+    "from_name": "加权合约监控",
+    "to": [],
+    "cc": []
+  },
+  "tianqin": {
+    "user": "",
+    "password": ""
+  }
+}
