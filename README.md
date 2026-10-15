@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.png" width="120" alt="futures-weighted-panel"></p>
+
 # 加权（仓权）合约监控面板 · 曲合 / 天勤 双数据源
 
 > 用**加权（持仓量加权）合约**数据，一屏监控全市场 **88** 个期货品种相对**历史均价**的偏离度；
